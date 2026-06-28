@@ -164,14 +164,17 @@ export default function App() {
   }, [availableVariables, availableStyles]);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, Finding[]> = {};
+    const map: Record<string, { label: string; findings: Finding[] }> = {};
     for (const f of visibleFindings) {
-      const key = f.layerType;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(f);
+      const key = activeTab === "dimension" ? `${f.layerId}__${f.property}` : f.layerType;
+      const label = activeTab === "dimension" ? `${f.layerName} > ${f.currentValue}` : f.layerType;
+      if (!map[key]) {
+        map[key] = { label, findings: [] };
+      }
+      map[key].findings.push(f);
     }
-    return groups;
-  }, [visibleFindings]);
+    return Object.entries(map);
+  }, [visibleFindings, activeTab]);
 
   const options = useMemo(() => tabOptionsMap[activeTab] ?? [], [tabOptionsMap, activeTab]);
 
@@ -299,24 +302,36 @@ export default function App() {
           ) : (
             <ScrollArea className="flex-1">
               <div className="px-3 pb-3 space-y-3">
-              {Object.entries(grouped).map(([layerType, typeFindings]) => (
-                <div key={layerType}>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{layerType}</span>
-                    <span className="text-[11px] text-muted-foreground">({typeFindings.length})</span>
-                  </div>
-                  {typeFindings.map((finding) => {
+              {grouped.map(([groupKey, group]) => (
+                <div key={groupKey}>
+                  {activeTab !== "dimension" && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</span>
+                      <span className="text-[11px] text-muted-foreground">({group.findings.length})</span>
+                    </div>
+                  )}
+                  {group.findings.map((finding) => {
                     const currentVal = selectedOptions[finding.id] ?? finding.suggestion?.variableId ?? finding.suggestion?.styleId ?? "";
 
                     return (
                       <div key={finding.id} className="flex items-center gap-1.5 py-1.5 w-full">
-                        <button
-                          onClick={() => jumpToLayer(finding.layerId)}
-                          className={`${triggerBaseClass} cursor-pointer text-left`}
-                        >
-                          <ColorSwatch value={finding.currentValue} className="w-2.5 h-2.5 shrink-0" />
-                          <span className="truncate">{finding.currentValue}</span>
-                        </button>
+                        {activeTab === "dimension" ? (
+                          <button
+                            onClick={() => jumpToLayer(finding.layerId)}
+                            className={`${triggerBaseClass} cursor-pointer text-left`}
+                          >
+                            <span className="truncate font-medium">{finding.layerName}</span>
+                            <span className="text-muted-foreground shrink-0">{finding.currentValue}</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => jumpToLayer(finding.layerId)}
+                            className={`${triggerBaseClass} cursor-pointer text-left`}
+                          >
+                            <ColorSwatch value={finding.currentValue} className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate">{finding.currentValue}</span>
+                          </button>
+                        )}
                         <span className="text-[11px] text-muted-foreground shrink-0">→</span>
                         <div className="flex-1 min-w-0">
                           {options.length > 0 ? (
@@ -391,17 +406,23 @@ export default function App() {
           <h1 className="text-base font-semibold">Variable Checker</h1>
           <p className="text-xs text-muted-foreground">Find and fix hardcoded values in your designs</p>
         </div>
-        <div className="space-y-2">
-          <Select value={scanScope} onValueChange={(v) => setScanScope(v as ScanScope)}>
-            <SelectTrigger className="h-8 w-full text-xs px-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="selection">Current Selection</SelectItem>
-              <SelectItem value="page">Current Page</SelectItem>
-              <SelectItem value="file">All Pages</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-6">
+          <div className="relative">
+            <select
+              value={scanScope}
+              onChange={(e) => setScanScope(e.target.value as ScanScope)}
+              className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm appearance-none cursor-pointer pr-7"
+            >
+              <option value="selection">Current Selection</option>
+              <option value="page">Current Page</option>
+              <option value="file">All Pages</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
+          </div>
           <Button onClick={startScan} className="w-full" size="sm">Run Scan</Button>
         </div>
       </div>
