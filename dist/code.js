@@ -138,7 +138,7 @@
   // src/core/scanner/color-scanner.ts
   var ColorScanner = class {
     scan(node, _settings) {
-      var _a;
+      var _a, _b, _c, _d, _e;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
       if ("fills" in node && Array.isArray(node.fills)) {
@@ -149,23 +149,27 @@
           if (isSolidColor(fill)) {
             const paint = fill;
             const color = getPaintColor(paint);
-            findings.push({
-              id: generateId(),
-              layerId: node.id,
-              layerName: node.name,
-              layerType: node.type,
-              category: "color",
-              property: `fill[${i}]`,
-              currentValue: formatColorValue(color),
-              suggestedValue: null,
-              suggestion: null,
-              confidence: 0,
-              matchType: null,
-              source: null,
-              sourceName: null,
-              parentChain: findParentChain(node),
-              pageName
-            });
+            const fillStyleApplied = "fillStyleId" in node && !!node.fillStyleId;
+            const boundFill = ((_b = node.boundVariables) == null ? void 0 : _b.fill) || ((_c = paint.boundVariables) == null ? void 0 : _c.color);
+            if (!fillStyleApplied && !boundFill) {
+              findings.push({
+                id: generateId(),
+                layerId: node.id,
+                layerName: node.name,
+                layerType: node.type,
+                category: "color",
+                property: `fill[${i}]`,
+                currentValue: formatColorValue(color),
+                suggestedValue: null,
+                suggestion: null,
+                confidence: 0,
+                matchType: null,
+                source: null,
+                sourceName: null,
+                parentChain: findParentChain(node),
+                pageName
+              });
+            }
           }
           if (isGradient(fill)) {
             findings.push({
@@ -196,23 +200,27 @@
           if (isSolidColor(stroke)) {
             const paint = stroke;
             const color = getPaintColor(paint);
-            findings.push({
-              id: generateId(),
-              layerId: node.id,
-              layerName: node.name,
-              layerType: node.type,
-              category: "color",
-              property: `stroke[${i}]`,
-              currentValue: formatColorValue(color),
-              suggestedValue: null,
-              suggestion: null,
-              confidence: 0,
-              matchType: null,
-              source: null,
-              sourceName: null,
-              parentChain: findParentChain(node),
-              pageName
-            });
+            const strokeStyleApplied = "strokeStyleId" in node && !!node.strokeStyleId;
+            const boundStroke = ((_d = node.boundVariables) == null ? void 0 : _d.stroke) || ((_e = paint.boundVariables) == null ? void 0 : _e.color);
+            if (!strokeStyleApplied && !boundStroke) {
+              findings.push({
+                id: generateId(),
+                layerId: node.id,
+                layerName: node.name,
+                layerType: node.type,
+                category: "color",
+                property: `stroke[${i}]`,
+                currentValue: formatColorValue(color),
+                suggestedValue: null,
+                suggestion: null,
+                confidence: 0,
+                matchType: null,
+                source: null,
+                sourceName: null,
+                parentChain: findParentChain(node),
+                pageName
+              });
+            }
           }
         }
       }
@@ -320,6 +328,7 @@
       if (node.type !== "TEXT") return [];
       const textNode = node;
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
+      if (!!textNode.textStyleId) return [];
       const props = extractTypographyProperties(textNode);
       const formatted = formatTypographyProperties(props);
       const parts = [];

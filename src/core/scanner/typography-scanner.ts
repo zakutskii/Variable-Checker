@@ -10,6 +10,8 @@ export class TypographyScanner {
     const textNode = node as TextNode;
     const pageName = node.parent?.type === "PAGE" ? (node.parent as PageNode).name : "Unknown";
 
+    if (!!textNode.textStyleId) return [];
+
     const props = extractTypographyProperties(textNode);
     const formatted = formatTypographyProperties(props);
     const parts: string[] = [];
