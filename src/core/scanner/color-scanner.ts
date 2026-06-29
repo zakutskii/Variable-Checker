@@ -31,6 +31,7 @@ export class ColorScanner {
     if ("fills" in node && Array.isArray(node.fills)) {
       const fills = node.fills as Paint[];
       console.log(`[DesignChecker] ColorScanner: node=${node.name} fills.length=${fills.length}`);
+      console.log(`[DesignChecker] ColorScanner: accessibleVariableIds.size=${this.accessibleVariableIds.size}`);
       for (let i = 0; i < fills.length; i++) {
         const fill = fills[i];
         if (!fill) continue;
@@ -47,10 +48,16 @@ export class ColorScanner {
           const hasNodeVariable = this.isVariableAliasBound(nodeBV?.fill);
           const hasPaintVariable = this.isVariableAliasBound(paintBV?.color);
 
-          console.log(`[DesignChecker] ColorScanner: fill[${i}] nodeBV=`, nodeBV?.fill, ` paintBV=`, paintBV?.color);
-          console.log(`[DesignChecker] ColorScanner: fill[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
+          console.log(`[DesignChecker] ColorScanner: fill[${i}] heuristics: style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable}`);
+          console.log(`[DesignChecker] ColorScanner: fill[${i}] raw nodeBV?.fill=`, nodeBV?.fill);
+          console.log(`[DesignChecker] ColorScanner: fill[${i}] raw paintBV?.color=`, paintBV?.color);
+          if (paintBV?.color) {
+            const id = (paintBV.color as { id?: string }).id;
+            console.log(`[DesignChecker] ColorScanner: fill[${i}] paintBV.color.id=${id} in set=${this.accessibleVariableIds.has(id!)}`);
+          }
 
           if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
+            console.log(`[DesignChecker] ColorScanner: >> SHOWING fill[${i}] for ${node.name}`);
             findings.push({
               id: generateId(),
               layerId: node.id,
@@ -68,6 +75,8 @@ export class ColorScanner {
               parentChain: findParentChain(node),
               pageName,
             });
+          } else {
+            console.log(`[DesignChecker] ColorScanner: >> SKIPPING fill[${i}] for ${node.name} (style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable})`);
           }
         }
 
@@ -115,10 +124,12 @@ export class ColorScanner {
           const hasNodeVariable = this.isVariableAliasBound(nodeBV?.stroke);
           const hasPaintVariable = this.isVariableAliasBound(paintBV?.color);
 
-          console.log(`[DesignChecker] ColorScanner: stroke[${i}] nodeBV=`, nodeBV?.stroke, ` paintBV=`, paintBV?.color);
-          console.log(`[DesignChecker] ColorScanner: stroke[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
+          console.log(`[DesignChecker] ColorScanner: stroke[${i}] heuristics: style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable}`);
+          console.log(`[DesignChecker] ColorScanner: stroke[${i}] raw nodeBV?.stroke=`, nodeBV?.stroke);
+          console.log(`[DesignChecker] ColorScanner: stroke[${i}] raw paintBV?.color=`, paintBV?.color);
 
           if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
+            console.log(`[DesignChecker] ColorScanner: >> SHOWING stroke[${i}] for ${node.name}`);
             findings.push({
               id: generateId(),
               layerId: node.id,
@@ -136,6 +147,8 @@ export class ColorScanner {
               parentChain: findParentChain(node),
               pageName,
             });
+          } else {
+            console.log(`[DesignChecker] ColorScanner: >> SKIPPING stroke[${i}] for ${node.name} (style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable})`);
           }
         }
       }

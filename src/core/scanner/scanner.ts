@@ -75,6 +75,12 @@ export class Scanner {
 
         try {
           const findings = this.scanNode(node, settings);
+          if (findings.length > 0) {
+            const cats = [...new Set(findings.map(f => f.category))].join(",");
+            console.log(`[DesignChecker] Scanner: node=${node.name} findings=${findings.length} cats=${cats}`);
+          } else {
+            console.log(`[DesignChecker] Scanner: node=${node.name} findings=0`);
+          }
           allFindings.push(...findings);
         } catch (err) {
           console.error(`[DesignChecker] Error scanning node ${node.name} (${node.id}):`, err);

@@ -162,6 +162,7 @@
       if ("fills" in node && Array.isArray(node.fills)) {
         const fills = node.fills;
         console.log(`[DesignChecker] ColorScanner: node=${node.name} fills.length=${fills.length}`);
+        console.log(`[DesignChecker] ColorScanner: accessibleVariableIds.size=${this.accessibleVariableIds.size}`);
         for (let i = 0; i < fills.length; i++) {
           const fill = fills[i];
           if (!fill) continue;
@@ -175,9 +176,15 @@
             const hasStyle = !!fillStyleId;
             const hasNodeVariable = this.isVariableAliasBound(nodeBV == null ? void 0 : nodeBV.fill);
             const hasPaintVariable = this.isVariableAliasBound(paintBV == null ? void 0 : paintBV.color);
-            console.log(`[DesignChecker] ColorScanner: fill[${i}] nodeBV=`, nodeBV == null ? void 0 : nodeBV.fill, ` paintBV=`, paintBV == null ? void 0 : paintBV.color);
-            console.log(`[DesignChecker] ColorScanner: fill[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
+            console.log(`[DesignChecker] ColorScanner: fill[${i}] heuristics: style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable}`);
+            console.log(`[DesignChecker] ColorScanner: fill[${i}] raw nodeBV?.fill=`, nodeBV == null ? void 0 : nodeBV.fill);
+            console.log(`[DesignChecker] ColorScanner: fill[${i}] raw paintBV?.color=`, paintBV == null ? void 0 : paintBV.color);
+            if (paintBV == null ? void 0 : paintBV.color) {
+              const id = paintBV.color.id;
+              console.log(`[DesignChecker] ColorScanner: fill[${i}] paintBV.color.id=${id} in set=${this.accessibleVariableIds.has(id)}`);
+            }
             if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
+              console.log(`[DesignChecker] ColorScanner: >> SHOWING fill[${i}] for ${node.name}`);
               findings.push({
                 id: generateId(),
                 layerId: node.id,
@@ -195,6 +202,8 @@
                 parentChain: findParentChain(node),
                 pageName
               });
+            } else {
+              console.log(`[DesignChecker] ColorScanner: >> SKIPPING fill[${i}] for ${node.name} (style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable})`);
             }
           }
           if (isGradient(fill)) {
@@ -236,9 +245,11 @@
             const hasStyle = !!strokeStyleId;
             const hasNodeVariable = this.isVariableAliasBound(nodeBV == null ? void 0 : nodeBV.stroke);
             const hasPaintVariable = this.isVariableAliasBound(paintBV == null ? void 0 : paintBV.color);
-            console.log(`[DesignChecker] ColorScanner: stroke[${i}] nodeBV=`, nodeBV == null ? void 0 : nodeBV.stroke, ` paintBV=`, paintBV == null ? void 0 : paintBV.color);
-            console.log(`[DesignChecker] ColorScanner: stroke[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
+            console.log(`[DesignChecker] ColorScanner: stroke[${i}] heuristics: style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable}`);
+            console.log(`[DesignChecker] ColorScanner: stroke[${i}] raw nodeBV?.stroke=`, nodeBV == null ? void 0 : nodeBV.stroke);
+            console.log(`[DesignChecker] ColorScanner: stroke[${i}] raw paintBV?.color=`, paintBV == null ? void 0 : paintBV.color);
             if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
+              console.log(`[DesignChecker] ColorScanner: >> SHOWING stroke[${i}] for ${node.name}`);
               findings.push({
                 id: generateId(),
                 layerId: node.id,
@@ -256,6 +267,8 @@
                 parentChain: findParentChain(node),
                 pageName
               });
+            } else {
+              console.log(`[DesignChecker] ColorScanner: >> SKIPPING stroke[${i}] for ${node.name} (style=${hasStyle} nodeVar=${hasNodeVariable} paintVar=${hasPaintVariable})`);
             }
           }
         }
@@ -1181,6 +1194,12 @@
           if (this.cancelled) throw new Error("Scan cancelled");
           try {
             const findings = this.scanNode(node, settings);
+            if (findings.length > 0) {
+              const cats = [...new Set(findings.map((f) => f.category))].join(",");
+              console.log(`[DesignChecker] Scanner: node=${node.name} findings=${findings.length} cats=${cats}`);
+            } else {
+              console.log(`[DesignChecker] Scanner: node=${node.name} findings=0`);
+            }
             allFindings.push(...findings);
           } catch (err) {
             console.error(`[DesignChecker] Error scanning node ${node.name} (${node.id}):`, err);
