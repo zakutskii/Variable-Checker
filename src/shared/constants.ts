@@ -33,7 +33,7 @@ export const PAGE_SIZES = [25, 50, 100, 250] as const;
 
 export const DEFAULT_PAGE_SIZE = 50;
 
-export const SCAN_BATCH_SIZE = 100;
+export const SCAN_BATCH_SIZE = 500;
 
 export const SIMILARITY_COLOR_THRESHOLD = 0.95;
 export const SIMILARITY_SPACING_THRESHOLD = 0.9;

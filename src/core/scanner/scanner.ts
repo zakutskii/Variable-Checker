@@ -215,7 +215,7 @@ export class Scanner {
 
   private async yieldToMainThread(): Promise<void> {
     return new Promise((resolve) => {
-      setTimeout(resolve, 0);
+      setTimeout(resolve, 5);
     });
   }
 

@@ -22,7 +22,7 @@
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
   // src/shared/constants.ts
-  var SCAN_BATCH_SIZE = 100;
+  var SCAN_BATCH_SIZE = 500;
 
   // src/utils/helpers.ts
   function generateId() {
@@ -1089,7 +1089,7 @@
         } else {
           matched.push(finding);
         }
-        if (i % 10 === 0) {
+        if (i % 100 === 0) {
           try {
             onProgress == null ? void 0 : onProgress({
               phase: "matching",
@@ -1107,7 +1107,7 @@
     }
     async yieldToMainThread() {
       return new Promise((resolve) => {
-        setTimeout(resolve, 0);
+        setTimeout(resolve, 5);
       });
     }
   };
@@ -1272,7 +1272,7 @@
     }
     async yieldToMainThread() {
       return new Promise((resolve) => {
-        setTimeout(resolve, 0);
+        setTimeout(resolve, 5);
       });
     }
     generateSummary(findings, totalLayers) {

@@ -60,7 +60,7 @@ export class Matcher {
         matched.push(finding);
       }
 
-      if (i % 10 === 0) {
+      if (i % 100 === 0) {
         try {
           onProgress?.({
             phase: "matching",
@@ -82,7 +82,7 @@ export class Matcher {
 
   private async yieldToMainThread(): Promise<void> {
     return new Promise((resolve) => {
-      setTimeout(resolve, 0);
+      setTimeout(resolve, 5);
     });
   }
 }
