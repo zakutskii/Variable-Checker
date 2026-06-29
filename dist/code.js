@@ -137,6 +137,19 @@
 
   // src/core/scanner/color-scanner.ts
   var ColorScanner = class {
+    isVariableAliasBound(alias) {
+      var _a;
+      if (alias == null) return false;
+      const aliases = Array.isArray(alias) ? alias : [alias];
+      for (const a of aliases) {
+        if (typeof a !== "object") continue;
+        const item = a;
+        if (item.type !== "VARIABLE_ALIAS" || !item.id) continue;
+        const variable = (_a = figma.variables) == null ? void 0 : _a.getVariableById(item.id);
+        if (variable != null) return true;
+      }
+      return false;
+    }
     scan(node, _settings) {
       var _a;
       const findings = [];
@@ -156,8 +169,8 @@
             const nodeBV = node.boundVariables;
             const paintBV = paint.boundVariables;
             const hasStyle = !!fillStyleId;
-            const hasNodeVariable = (nodeBV == null ? void 0 : nodeBV.fill) != null;
-            const hasPaintVariable = (paintBV == null ? void 0 : paintBV.color) != null;
+            const hasNodeVariable = this.isVariableAliasBound(nodeBV == null ? void 0 : nodeBV.fill);
+            const hasPaintVariable = this.isVariableAliasBound(paintBV == null ? void 0 : paintBV.color);
             console.log(`[DesignChecker] ColorScanner: fill[${i}] nodeBV=`, nodeBV == null ? void 0 : nodeBV.fill, ` paintBV=`, paintBV == null ? void 0 : paintBV.color);
             console.log(`[DesignChecker] ColorScanner: fill[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
             if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
@@ -217,8 +230,8 @@
             const nodeBV = node.boundVariables;
             const paintBV = paint.boundVariables;
             const hasStyle = !!strokeStyleId;
-            const hasNodeVariable = (nodeBV == null ? void 0 : nodeBV.stroke) != null;
-            const hasPaintVariable = (paintBV == null ? void 0 : paintBV.color) != null;
+            const hasNodeVariable = this.isVariableAliasBound(nodeBV == null ? void 0 : nodeBV.stroke);
+            const hasPaintVariable = this.isVariableAliasBound(paintBV == null ? void 0 : paintBV.color);
             console.log(`[DesignChecker] ColorScanner: stroke[${i}] nodeBV=`, nodeBV == null ? void 0 : nodeBV.stroke, ` paintBV=`, paintBV == null ? void 0 : paintBV.color);
             console.log(`[DesignChecker] ColorScanner: stroke[${i}] hasStyle=${hasStyle} hasNodeVar=${hasNodeVariable} hasPaintVar=${hasPaintVariable}`);
             if (!hasStyle && !hasNodeVariable && !hasPaintVariable) {
