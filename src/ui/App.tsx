@@ -124,6 +124,7 @@ export default function App() {
         case "scan-error":
           setIsScanning(false);
           setProgress(null);
+          toast("Scan failed", { description: message.payload?.message ?? "Unknown error" });
           break;
         case "apply-complete":
           setIsApplying(false);

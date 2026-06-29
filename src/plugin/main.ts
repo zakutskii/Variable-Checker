@@ -114,6 +114,14 @@ async function handleStartScan(scope: string, settings?: ScanSettings): Promise<
       performanceAsyncProcessing: true,
     };
 
+    if (scope === "selection" && figma.currentPage.selection.length === 0) {
+      figma.ui.postMessage({
+        type: "scan-error",
+        payload: { message: "Nothing selected. Select a layer first." },
+      });
+      return;
+    }
+
     const scanResult = await scanner.scan(
       scope as ScanResult["scope"],
       finalSettings,
