@@ -138,7 +138,7 @@
   // src/core/scanner/color-scanner.ts
   var ColorScanner = class {
     scan(node, _settings) {
-      var _a, _b, _c, _d, _e;
+      var _a;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
       console.log(`[DesignChecker] ColorScanner.scan: node=${node.name} type=${node.type}`);
@@ -153,9 +153,8 @@
             const paint = fill;
             const color = getPaintColor(paint);
             const fillStyleApplied = "fillStyleId" in node && !!node.fillStyleId;
-            const boundFill = ((_b = node.boundVariables) == null ? void 0 : _b.fill) || ((_c = paint.boundVariables) == null ? void 0 : _c.color);
-            console.log(`[DesignChecker] ColorScanner: solid fill[${i}] style=${fillStyleApplied} bound=${!!boundFill} color=${formatColorValue(color)}`);
-            if (!fillStyleApplied && !boundFill) {
+            console.log(`[DesignChecker] ColorScanner: solid fill[${i}] style=${fillStyleApplied} color=${formatColorValue(color)}`);
+            if (!fillStyleApplied) {
               findings.push({
                 id: generateId(),
                 layerId: node.id,
@@ -209,9 +208,8 @@
             const paint = stroke;
             const color = getPaintColor(paint);
             const strokeStyleApplied = "strokeStyleId" in node && !!node.strokeStyleId;
-            const boundStroke = ((_d = node.boundVariables) == null ? void 0 : _d.stroke) || ((_e = paint.boundVariables) == null ? void 0 : _e.color);
-            console.log(`[DesignChecker] ColorScanner: solid stroke[${i}] style=${strokeStyleApplied} bound=${!!boundStroke} color=${formatColorValue(color)}`);
-            if (!strokeStyleApplied && !boundStroke) {
+            console.log(`[DesignChecker] ColorScanner: solid stroke[${i}] style=${strokeStyleApplied} color=${formatColorValue(color)}`);
+            if (!strokeStyleApplied) {
               findings.push({
                 id: generateId(),
                 layerId: node.id,

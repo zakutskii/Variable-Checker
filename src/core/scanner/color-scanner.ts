@@ -23,10 +23,10 @@ export class ColorScanner {
           const paint = fill as SolidPaint;
           const color = getPaintColor(paint);
           const fillStyleApplied = "fillStyleId" in node && !!(node as GeometryMixin).fillStyleId;
-          const boundFill = (node as GeometryMixin).boundVariables?.fill || paint.boundVariables?.color;
-          console.log(`[DesignChecker] ColorScanner: solid fill[${i}] style=${fillStyleApplied} bound=${!!boundFill} color=${formatColorValue(color)}`);
 
-          if (!fillStyleApplied && !boundFill) {
+          console.log(`[DesignChecker] ColorScanner: solid fill[${i}] style=${fillStyleApplied} color=${formatColorValue(color)}`);
+
+          if (!fillStyleApplied) {
             findings.push({
               id: generateId(),
               layerId: node.id,
@@ -85,10 +85,10 @@ export class ColorScanner {
           const paint = stroke as SolidPaint;
           const color = getPaintColor(paint);
           const strokeStyleApplied = "strokeStyleId" in node && !!(node as GeometryMixin).strokeStyleId;
-          const boundStroke = (node as GeometryMixin).boundVariables?.stroke || paint.boundVariables?.color;
-          console.log(`[DesignChecker] ColorScanner: solid stroke[${i}] style=${strokeStyleApplied} bound=${!!boundStroke} color=${formatColorValue(color)}`);
 
-          if (!strokeStyleApplied && !boundStroke) {
+          console.log(`[DesignChecker] ColorScanner: solid stroke[${i}] style=${strokeStyleApplied} color=${formatColorValue(color)}`);
+
+          if (!strokeStyleApplied) {
             findings.push({
               id: generateId(),
               layerId: node.id,
