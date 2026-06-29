@@ -274,7 +274,7 @@ export default function App() {
                   (f) => !appliedFindingIds.has(f.id),
                 ).length;
                 return (
-                  <TabsTrigger key={t.id} value={t.id} className="flex-1 text-xs gap-1.5 px-2 py-1.5">
+                  <TabsTrigger key={t.id} value={t.id} className="flex-1 text-xs gap-1.5 p-1.5">
                     <span className="truncate">{t.label}</span>
                     <span className="rounded-full min-w-[20px] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-muted-foreground/15 leading-none text-center">
                       {count}
@@ -397,9 +397,9 @@ export default function App() {
           <div className="flex flex-col gap-6">
             <Tabs value={scanScope} onValueChange={(v) => setScanScope(v as ScanScope)}>
               <TabsList className="w-full">
-                <TabsTrigger value="selection" className="flex-1 text-xs">Selection</TabsTrigger>
-                <TabsTrigger value="page" className="flex-1 text-xs">Page</TabsTrigger>
-                <TabsTrigger value="file" className="flex-1 text-xs">File</TabsTrigger>
+                <TabsTrigger value="selection" className="flex-1 text-xs p-1.5">Selection</TabsTrigger>
+                <TabsTrigger value="page" className="flex-1 text-xs p-1.5">Page</TabsTrigger>
+                <TabsTrigger value="file" className="flex-1 text-xs p-1.5">File</TabsTrigger>
               </TabsList>
             </Tabs>
             <Button onClick={startScan} className="w-full" size="sm">Run Scan</Button>
