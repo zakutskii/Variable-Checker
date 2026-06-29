@@ -372,9 +372,14 @@ export default function App() {
             {TABS.find((t) => t.id === activeTab)?.label.toLowerCase() ?? "items"} across{" "}
             <span className="font-medium text-foreground">{uniqueLayers}</span> item{uniqueLayers !== 1 ? "s" : ""}
           </p>
-          <Button variant="default" size="sm" className="h-7 text-xs" disabled={isApplying || applyableCount === 0} onClick={applyAll}>
-            {isApplying ? "Applying..." : `Apply (${applyableCount})`}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={startScan}>
+              Rescan
+            </Button>
+            <Button variant="default" size="sm" className="h-7 text-xs" disabled={isApplying || applyableCount === 0} onClick={applyAll}>
+              {isApplying ? "Applying..." : `Apply (${applyableCount})`}
+            </Button>
+          </div>
         </div>
 
         <Toaster />
