@@ -2137,7 +2137,7 @@
         matchEffectStyles: true,
         matchNumberVariables: true,
         safetySkipLibraryAssets: true,
-        safetySkipInstances: true,
+        safetySkipInstances: false,
         safetyConfirmBulkActions: true,
         performanceBatchSize: 500,
         performanceAsyncProcessing: true
