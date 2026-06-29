@@ -138,7 +138,7 @@
   // src/core/scanner/color-scanner.ts
   var ColorScanner = class {
     scan(node, _settings) {
-      var _a, _b, _c, _d, _e;
+      var _a;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
       if ("fills" in node && Array.isArray(node.fills)) {
@@ -149,26 +149,23 @@
           if (isSolidColor(fill)) {
             const paint = fill;
             const color = getPaintColor(paint);
-            const boundFill = ((_b = node.boundVariables) == null ? void 0 : _b.fill) || ((_c = paint.boundVariables) == null ? void 0 : _c.color);
-            if (!boundFill) {
-              findings.push({
-                id: generateId(),
-                layerId: node.id,
-                layerName: node.name,
-                layerType: node.type,
-                category: "color",
-                property: `fill[${i}]`,
-                currentValue: formatColorValue(color),
-                suggestedValue: null,
-                suggestion: null,
-                confidence: 0,
-                matchType: null,
-                source: null,
-                sourceName: null,
-                parentChain: findParentChain(node),
-                pageName
-              });
-            }
+            findings.push({
+              id: generateId(),
+              layerId: node.id,
+              layerName: node.name,
+              layerType: node.type,
+              category: "color",
+              property: `fill[${i}]`,
+              currentValue: formatColorValue(color),
+              suggestedValue: null,
+              suggestion: null,
+              confidence: 0,
+              matchType: null,
+              source: null,
+              sourceName: null,
+              parentChain: findParentChain(node),
+              pageName
+            });
           }
           if (isGradient(fill)) {
             findings.push({
@@ -199,26 +196,23 @@
           if (isSolidColor(stroke)) {
             const paint = stroke;
             const color = getPaintColor(paint);
-            const boundStroke = ((_d = node.boundVariables) == null ? void 0 : _d.stroke) || ((_e = paint.boundVariables) == null ? void 0 : _e.color);
-            if (!boundStroke) {
-              findings.push({
-                id: generateId(),
-                layerId: node.id,
-                layerName: node.name,
-                layerType: node.type,
-                category: "color",
-                property: `stroke[${i}]`,
-                currentValue: formatColorValue(color),
-                suggestedValue: null,
-                suggestion: null,
-                confidence: 0,
-                matchType: null,
-                source: null,
-                sourceName: null,
-                parentChain: findParentChain(node),
-                pageName
-              });
-            }
+            findings.push({
+              id: generateId(),
+              layerId: node.id,
+              layerName: node.name,
+              layerType: node.type,
+              category: "color",
+              property: `stroke[${i}]`,
+              currentValue: formatColorValue(color),
+              suggestedValue: null,
+              suggestion: null,
+              confidence: 0,
+              matchType: null,
+              source: null,
+              sourceName: null,
+              parentChain: findParentChain(node),
+              pageName
+            });
           }
         }
       }
@@ -326,7 +320,6 @@
       if (node.type !== "TEXT") return [];
       const textNode = node;
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
-      if (!!textNode.textStyleId) return [];
       const props = extractTypographyProperties(textNode);
       const formatted = formatTypographyProperties(props);
       const parts = [];
@@ -440,9 +433,7 @@
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
       if ("cornerRadius" in node && typeof node.cornerRadius === "number") {
         const cornerRadius = node.cornerRadius;
-        const boundVars = node.boundVariables;
-        const isBound = (boundVars == null ? void 0 : boundVars.cornerRadius) !== void 0;
-        if (cornerRadius > 0 && !isBound) {
+        if (cornerRadius > 0) {
           findings.push({
             id: generateId(),
             layerId: node.id,
@@ -541,17 +532,40 @@
       if ("layoutMode" in node && node.layoutMode !== "NONE") {
         const frameNode = node;
         if (frameNode.itemSpacing > 0) {
-          const boundVars = node.boundVariables;
-          const isBound = (boundVars == null ? void 0 : boundVars.itemSpacing) !== void 0;
-          if (!isBound) {
+          findings.push({
+            id: generateId(),
+            layerId: node.id,
+            layerName: node.name,
+            layerType: node.type,
+            category: "layout",
+            property: "itemSpacing",
+            currentValue: `${frameNode.itemSpacing}px`,
+            suggestedValue: null,
+            suggestion: null,
+            confidence: 0,
+            matchType: null,
+            source: null,
+            sourceName: null,
+            parentChain: findParentChain(node),
+            pageName
+          });
+        }
+        const paddingProps = [
+          { key: "paddingTop", value: frameNode.paddingTop },
+          { key: "paddingBottom", value: frameNode.paddingBottom },
+          { key: "paddingLeft", value: frameNode.paddingLeft },
+          { key: "paddingRight", value: frameNode.paddingRight }
+        ];
+        for (const prop of paddingProps) {
+          if (prop.value > 0) {
             findings.push({
               id: generateId(),
               layerId: node.id,
               layerName: node.name,
               layerType: node.type,
               category: "layout",
-              property: "itemSpacing",
-              currentValue: `${frameNode.itemSpacing}px`,
+              property: prop.key,
+              currentValue: `${prop.value}px`,
               suggestedValue: null,
               suggestion: null,
               confidence: 0,
@@ -563,83 +577,44 @@
             });
           }
         }
-        const paddingProps = [
-          { key: "paddingTop", value: frameNode.paddingTop },
-          { key: "paddingBottom", value: frameNode.paddingBottom },
-          { key: "paddingLeft", value: frameNode.paddingLeft },
-          { key: "paddingRight", value: frameNode.paddingRight }
-        ];
-        for (const prop of paddingProps) {
-          if (prop.value > 0) {
-            const boundVars = node.boundVariables;
-            const isBound = (boundVars == null ? void 0 : boundVars[prop.key]) !== void 0;
-            if (!isBound) {
-              findings.push({
-                id: generateId(),
-                layerId: node.id,
-                layerName: node.name,
-                layerType: node.type,
-                category: "layout",
-                property: prop.key,
-                currentValue: `${prop.value}px`,
-                suggestedValue: null,
-                suggestion: null,
-                confidence: 0,
-                matchType: null,
-                source: null,
-                sourceName: null,
-                parentChain: findParentChain(node),
-                pageName
-              });
-            }
-          }
-        }
       }
       if ("width" in node && typeof node.width === "number") {
-        const boundVars = node.boundVariables;
-        const isBound = (boundVars == null ? void 0 : boundVars.width) !== void 0;
-        if (!isBound) {
-          findings.push({
-            id: generateId(),
-            layerId: node.id,
-            layerName: node.name,
-            layerType: node.type,
-            category: "layout",
-            property: "width",
-            currentValue: `${Math.round(node.width)}px`,
-            suggestedValue: null,
-            suggestion: null,
-            confidence: 0,
-            matchType: null,
-            source: null,
-            sourceName: null,
-            parentChain: findParentChain(node),
-            pageName
-          });
-        }
+        findings.push({
+          id: generateId(),
+          layerId: node.id,
+          layerName: node.name,
+          layerType: node.type,
+          category: "layout",
+          property: "width",
+          currentValue: `${Math.round(node.width)}px`,
+          suggestedValue: null,
+          suggestion: null,
+          confidence: 0,
+          matchType: null,
+          source: null,
+          sourceName: null,
+          parentChain: findParentChain(node),
+          pageName
+        });
       }
       if ("height" in node && typeof node.height === "number") {
-        const boundVars = node.boundVariables;
-        const isBound = (boundVars == null ? void 0 : boundVars.height) !== void 0;
-        if (!isBound) {
-          findings.push({
-            id: generateId(),
-            layerId: node.id,
-            layerName: node.name,
-            layerType: node.type,
-            category: "layout",
-            property: "height",
-            currentValue: `${Math.round(node.height)}px`,
-            suggestedValue: null,
-            suggestion: null,
-            confidence: 0,
-            matchType: null,
-            source: null,
-            sourceName: null,
-            parentChain: findParentChain(node),
-            pageName
-          });
-        }
+        findings.push({
+          id: generateId(),
+          layerId: node.id,
+          layerName: node.name,
+          layerType: node.type,
+          category: "layout",
+          property: "height",
+          currentValue: `${Math.round(node.height)}px`,
+          suggestedValue: null,
+          suggestion: null,
+          confidence: 0,
+          matchType: null,
+          source: null,
+          sourceName: null,
+          parentChain: findParentChain(node),
+          pageName
+        });
       }
       return findings;
     }

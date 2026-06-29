@@ -17,27 +17,24 @@ export class ColorScanner {
         if (isSolidColor(fill)) {
           const paint = fill as SolidPaint;
           const color = getPaintColor(paint);
-          const boundFill = (node as GeometryMixin).boundVariables?.fill || paint.boundVariables?.color;
 
-          if (!boundFill) {
-            findings.push({
-              id: generateId(),
-              layerId: node.id,
-              layerName: node.name,
-              layerType: node.type,
-              category: "color",
-              property: `fill[${i}]`,
-              currentValue: formatColorValue(color),
-              suggestedValue: null,
-              suggestion: null,
-              confidence: 0,
-              matchType: null,
-              source: null,
-              sourceName: null,
-              parentChain: findParentChain(node),
-              pageName,
-            });
-          }
+          findings.push({
+            id: generateId(),
+            layerId: node.id,
+            layerName: node.name,
+            layerType: node.type,
+            category: "color",
+            property: `fill[${i}]`,
+            currentValue: formatColorValue(color),
+            suggestedValue: null,
+            suggestion: null,
+            confidence: 0,
+            matchType: null,
+            source: null,
+            sourceName: null,
+            parentChain: findParentChain(node),
+            pageName,
+          });
         }
 
         if (isGradient(fill)) {
@@ -72,27 +69,24 @@ export class ColorScanner {
         if (isSolidColor(stroke)) {
           const paint = stroke as SolidPaint;
           const color = getPaintColor(paint);
-          const boundStroke = (node as GeometryMixin).boundVariables?.stroke || paint.boundVariables?.color;
 
-          if (!boundStroke) {
-            findings.push({
-              id: generateId(),
-              layerId: node.id,
-              layerName: node.name,
-              layerType: node.type,
-              category: "color",
-              property: `stroke[${i}]`,
-              currentValue: formatColorValue(color),
-              suggestedValue: null,
-              suggestion: null,
-              confidence: 0,
-              matchType: null,
-              source: null,
-              sourceName: null,
-              parentChain: findParentChain(node),
-              pageName,
-            });
-          }
+          findings.push({
+            id: generateId(),
+            layerId: node.id,
+            layerName: node.name,
+            layerType: node.type,
+            category: "color",
+            property: `stroke[${i}]`,
+            currentValue: formatColorValue(color),
+            suggestedValue: null,
+            suggestion: null,
+            confidence: 0,
+            matchType: null,
+            source: null,
+            sourceName: null,
+            parentChain: findParentChain(node),
+            pageName,
+          });
         }
       }
     }
