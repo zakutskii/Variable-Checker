@@ -141,16 +141,20 @@
       var _a, _b, _c, _d, _e;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
+      console.log(`[DesignChecker] ColorScanner.scan: node=${node.name} type=${node.type}`);
       if ("fills" in node && Array.isArray(node.fills)) {
         const fills = node.fills;
+        console.log(`[DesignChecker] ColorScanner: node=${node.name} fills.length=${fills.length}`);
         for (let i = 0; i < fills.length; i++) {
           const fill = fills[i];
           if (!fill) continue;
+          console.log(`[DesignChecker] ColorScanner: fill[${i}] type=${fill.type}`);
           if (isSolidColor(fill)) {
             const paint = fill;
             const color = getPaintColor(paint);
             const fillStyleApplied = "fillStyleId" in node && !!node.fillStyleId;
             const boundFill = ((_b = node.boundVariables) == null ? void 0 : _b.fill) || ((_c = paint.boundVariables) == null ? void 0 : _c.color);
+            console.log(`[DesignChecker] ColorScanner: solid fill[${i}] style=${fillStyleApplied} bound=${!!boundFill} color=${formatColorValue(color)}`);
             if (!fillStyleApplied && !boundFill) {
               findings.push({
                 id: generateId(),
@@ -191,17 +195,22 @@
             });
           }
         }
+      } else {
+        console.log(`[DesignChecker] ColorScanner: node=${node.name} has no fills property`);
       }
       if ("strokes" in node && Array.isArray(node.strokes)) {
         const strokes = node.strokes;
+        console.log(`[DesignChecker] ColorScanner: node=${node.name} strokes.length=${strokes.length}`);
         for (let i = 0; i < strokes.length; i++) {
           const stroke = strokes[i];
           if (!stroke) continue;
+          console.log(`[DesignChecker] ColorScanner: stroke[${i}] type=${stroke.type}`);
           if (isSolidColor(stroke)) {
             const paint = stroke;
             const color = getPaintColor(paint);
             const strokeStyleApplied = "strokeStyleId" in node && !!node.strokeStyleId;
             const boundStroke = ((_d = node.boundVariables) == null ? void 0 : _d.stroke) || ((_e = paint.boundVariables) == null ? void 0 : _e.color);
+            console.log(`[DesignChecker] ColorScanner: solid stroke[${i}] style=${strokeStyleApplied} bound=${!!boundStroke} color=${formatColorValue(color)}`);
             if (!strokeStyleApplied && !boundStroke) {
               findings.push({
                 id: generateId(),
@@ -224,6 +233,7 @@
           }
         }
       }
+      console.log(`[DesignChecker] ColorScanner: node=${node.name} findings=${findings.length}`);
       return findings;
     }
   };
@@ -328,6 +338,7 @@
       if (node.type !== "TEXT") return [];
       const textNode = node;
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
+      console.log(`[DesignChecker] TypographyScanner: node=${node.name} textStyleId=${textNode.textStyleId}`);
       if (!!textNode.textStyleId) return [];
       const props = extractTypographyProperties(textNode);
       const formatted = formatTypographyProperties(props);
@@ -336,6 +347,7 @@
       if (props.fontSize) parts.push(`${props.fontSize}px`);
       if (props.fontWeight) parts.push(String(props.fontWeight));
       if (props.lineHeight) parts.push(`LH ${props.lineHeight}${props.lineHeightUnit === "PERCENT" ? "%" : "px"}`);
+      console.log(`[DesignChecker] TypographyScanner: node=${node.name} has no textStyleId, returning finding`);
       return [{
         id: generateId(),
         layerId: node.id,
@@ -1121,6 +1133,7 @@
       this.cancelled = false;
       const nodes = await this.collectNodes(scope, settings);
       const totalLayers = nodes.length;
+      console.log(`[DesignChecker] Scanner: collected ${totalLayers} nodes, scope=${scope}`);
       onProgress == null ? void 0 : onProgress({
         phase: "scanning",
         totalLayers,
@@ -1136,8 +1149,12 @@
         const batch = nodes.slice(i, i + SCAN_BATCH_SIZE);
         for (const node of batch) {
           if (this.cancelled) throw new Error("Scan cancelled");
-          const findings = this.scanNode(node, settings);
-          allFindings.push(...findings);
+          try {
+            const findings = this.scanNode(node, settings);
+            allFindings.push(...findings);
+          } catch (err) {
+            console.error(`[DesignChecker] Error scanning node ${node.name} (${node.id}):`, err);
+          }
           onProgress == null ? void 0 : onProgress({
             phase: "scanning",
             totalLayers,
@@ -1148,6 +1165,13 @@
         }
         await this.yieldToMainThread();
       }
+      console.log(`[DesignChecker] Scanner: raw findings before matching: ${allFindings.length}`);
+      console.log(`[DesignChecker] Scanner: raw findings by category:`, {
+        color: allFindings.filter((f) => f.category === "color").length,
+        typography: allFindings.filter((f) => f.category === "typography").length,
+        effects: allFindings.filter((f) => f.category === "effects").length,
+        layout: allFindings.filter((f) => f.category === "layout").length
+      });
       onProgress == null ? void 0 : onProgress({
         phase: "matching",
         totalLayers,

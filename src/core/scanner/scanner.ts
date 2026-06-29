@@ -47,6 +47,8 @@ export class Scanner {
     const nodes = await this.collectNodes(scope, settings);
     const totalLayers = nodes.length;
 
+    console.log(`[DesignChecker] Scanner: collected ${totalLayers} nodes, scope=${scope}`);
+
     onProgress?.({
       phase: "scanning",
       totalLayers,
@@ -67,8 +69,12 @@ export class Scanner {
       for (const node of batch) {
         if (this.cancelled) throw new Error("Scan cancelled");
 
-        const findings = this.scanNode(node, settings);
-        allFindings.push(...findings);
+        try {
+          const findings = this.scanNode(node, settings);
+          allFindings.push(...findings);
+        } catch (err) {
+          console.error(`[DesignChecker] Error scanning node ${node.name} (${node.id}):`, err);
+        }
 
         onProgress?.({
           phase: "scanning",
@@ -81,6 +87,14 @@ export class Scanner {
 
       await this.yieldToMainThread();
     }
+
+    console.log(`[DesignChecker] Scanner: raw findings before matching: ${allFindings.length}`);
+    console.log(`[DesignChecker] Scanner: raw findings by category:`, {
+      color: allFindings.filter(f => f.category === "color").length,
+      typography: allFindings.filter(f => f.category === "typography").length,
+      effects: allFindings.filter(f => f.category === "effects").length,
+      layout: allFindings.filter(f => f.category === "layout").length,
+    });
 
     onProgress?.({
       phase: "matching",
