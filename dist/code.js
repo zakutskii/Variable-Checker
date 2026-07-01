@@ -138,7 +138,7 @@
   // src/core/scanner/color-scanner.ts
   var ColorScanner = class {
     scan(node, _settings) {
-      var _a;
+      var _a, _b, _c;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
       if ("fills" in node && Array.isArray(node.fills)) {
@@ -148,6 +148,7 @@
           if (!fill) continue;
           if (isSolidColor(fill)) {
             const paint = fill;
+            if ((_b = paint.boundVariables) == null ? void 0 : _b.color) continue;
             const color = getPaintColor(paint);
             const fillStyleId = "fillStyleId" in node ? node.fillStyleId : null;
             const hasStyle = !!fillStyleId;
@@ -199,6 +200,7 @@
           if (!stroke) continue;
           if (isSolidColor(stroke)) {
             const paint = stroke;
+            if ((_c = paint.boundVariables) == null ? void 0 : _c.color) continue;
             const color = getPaintColor(paint);
             const strokeStyleId = "strokeStyleId" in node ? node.strokeStyleId : null;
             const hasStyle = !!strokeStyleId;
@@ -440,9 +442,10 @@
       var _a;
       const findings = [];
       const pageName = ((_a = node.parent) == null ? void 0 : _a.type) === "PAGE" ? node.parent.name : "Unknown";
+      const bv = node.boundVariables;
       if ("cornerRadius" in node && typeof node.cornerRadius === "number") {
         const cornerRadius = node.cornerRadius;
-        if (cornerRadius > 0) {
+        if (cornerRadius > 0 && !(bv == null ? void 0 : bv.cornerRadius) && !(bv == null ? void 0 : bv.topLeftRadius) && !(bv == null ? void 0 : bv.topRightRadius) && !(bv == null ? void 0 : bv.bottomLeftRadius) && !(bv == null ? void 0 : bv.bottomRightRadius)) {
           findings.push({
             id: generateId(),
             layerId: node.id,
@@ -462,7 +465,7 @@
           });
         }
       }
-      if ("minWidth" in node && typeof node.minWidth === "number" && node.minWidth > 0) {
+      if ("minWidth" in node && typeof node.minWidth === "number" && node.minWidth > 0 && !(bv == null ? void 0 : bv.minWidth)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -481,7 +484,7 @@
           pageName
         });
       }
-      if ("maxWidth" in node && typeof node.maxWidth === "number" && node.maxWidth > 0) {
+      if ("maxWidth" in node && typeof node.maxWidth === "number" && node.maxWidth > 0 && !(bv == null ? void 0 : bv.maxWidth)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -500,7 +503,7 @@
           pageName
         });
       }
-      if ("minHeight" in node && typeof node.minHeight === "number" && node.minHeight > 0) {
+      if ("minHeight" in node && typeof node.minHeight === "number" && node.minHeight > 0 && !(bv == null ? void 0 : bv.minHeight)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -519,7 +522,7 @@
           pageName
         });
       }
-      if ("maxHeight" in node && typeof node.maxHeight === "number" && node.maxHeight > 0) {
+      if ("maxHeight" in node && typeof node.maxHeight === "number" && node.maxHeight > 0 && !(bv == null ? void 0 : bv.maxHeight)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -540,7 +543,7 @@
       }
       if ("layoutMode" in node && node.layoutMode !== "NONE") {
         const frameNode = node;
-        if (frameNode.itemSpacing > 0) {
+        if (frameNode.itemSpacing > 0 && !(bv == null ? void 0 : bv.itemSpacing)) {
           findings.push({
             id: generateId(),
             layerId: node.id,
@@ -559,6 +562,25 @@
             pageName
           });
         }
+        if (frameNode.counterAxisSpacing > 0 && !(bv == null ? void 0 : bv.counterAxisSpacing)) {
+          findings.push({
+            id: generateId(),
+            layerId: node.id,
+            layerName: node.name,
+            layerType: node.type,
+            category: "layout",
+            property: "counterAxisSpacing",
+            currentValue: `${frameNode.counterAxisSpacing}px`,
+            suggestedValue: null,
+            suggestion: null,
+            confidence: 0,
+            matchType: null,
+            source: null,
+            sourceName: null,
+            parentChain: findParentChain(node),
+            pageName
+          });
+        }
         const paddingProps = [
           { key: "paddingTop", value: frameNode.paddingTop },
           { key: "paddingBottom", value: frameNode.paddingBottom },
@@ -566,7 +588,7 @@
           { key: "paddingRight", value: frameNode.paddingRight }
         ];
         for (const prop of paddingProps) {
-          if (prop.value > 0) {
+          if (prop.value > 0 && !(bv == null ? void 0 : bv[prop.key])) {
             findings.push({
               id: generateId(),
               layerId: node.id,
@@ -587,7 +609,7 @@
           }
         }
       }
-      if ("width" in node && typeof node.width === "number") {
+      if ("width" in node && typeof node.width === "number" && !(bv == null ? void 0 : bv.width)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -606,7 +628,7 @@
           pageName
         });
       }
-      if ("height" in node && typeof node.height === "number") {
+      if ("height" in node && typeof node.height === "number" && !(bv == null ? void 0 : bv.height)) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -2140,9 +2162,20 @@
         }
       );
       currentScanResult = scanResult;
+      const findings = scanResult.findings;
+      enrichWithSuggestions(findings, variableResolver, styleResolver, finalSettings);
+      const CHUNK_SIZE = 500;
+      for (let i = 0; i < findings.length; i += CHUNK_SIZE) {
+        const chunk = findings.slice(i, Math.min(i + CHUNK_SIZE, findings.length));
+        figma.ui.postMessage({
+          type: "findings-chunk",
+          payload: { findings: chunk, total: findings.length, received: i + chunk.length }
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
       figma.ui.postMessage({
         type: "scan-complete",
-        payload: currentScanResult
+        payload: __spreadProps(__spreadValues({}, currentScanResult), { findings: [] })
       });
       figma.ui.postMessage({
         type: "assets-data",
@@ -2407,5 +2440,145 @@
       type: "apply-complete",
       payload: __spreadProps(__spreadValues({}, result), { appliedFindingIds: [findingId] })
     });
+  }
+  function enrichWithSuggestions(findings, variableResolver2, styleResolver2, settings) {
+    var _a, _b, _c;
+    const colorMap = /* @__PURE__ */ new Map();
+    if (settings.matchColorVariables) {
+      for (const v of variableResolver2.getColorVariables()) {
+        const c = v.value;
+        const hex = rgbaToHex(c.r, c.g, c.b, c.a);
+        if (!colorMap.has(hex)) {
+          colorMap.set(hex, {
+            variableId: v.id,
+            styleId: null,
+            name: v.name,
+            type: "variable",
+            category: "color",
+            confidence: 100,
+            matchType: "exact",
+            distance: 0,
+            source: v.source,
+            libraryName: v.libraryName
+          });
+        }
+      }
+    }
+    if (settings.matchColorStyles) {
+      for (const s of styleResolver2.getColorStyles()) {
+        try {
+          const paintStyle = figma.getStyleById(s.id);
+          if (!paintStyle) continue;
+          const paint = paintStyle.paints[0];
+          if (!paint || paint.type !== "SOLID") continue;
+          const sp = paint;
+          const hex = rgbaToHex(sp.color.r, sp.color.g, sp.color.b, (_a = sp.opacity) != null ? _a : 1);
+          if (!colorMap.has(hex)) {
+            colorMap.set(hex, {
+              variableId: null,
+              styleId: s.id,
+              name: s.name,
+              type: "style",
+              category: "color",
+              confidence: 100,
+              matchType: "exact",
+              distance: 0,
+              source: s.source,
+              libraryName: s.libraryName
+            });
+          }
+        } catch (e) {
+        }
+      }
+    }
+    const typographyMap = /* @__PURE__ */ new Map();
+    if (settings.matchTextStyles) {
+      for (const s of styleResolver2.getTextStyles()) {
+        try {
+          const textStyle = figma.getStyleById(s.id);
+          if (!textStyle) continue;
+          const fontName = textStyle.fontName;
+          const key = `${fontName.family}|${fontName.style}|${textStyle.fontSize}`;
+          if (!typographyMap.has(key)) {
+            typographyMap.set(key, {
+              variableId: null,
+              styleId: s.id,
+              name: s.name,
+              type: "style",
+              category: "typography",
+              confidence: 100,
+              matchType: "exact",
+              distance: 0,
+              source: s.source,
+              libraryName: s.libraryName
+            });
+          }
+        } catch (e) {
+        }
+      }
+    }
+    const dimensionMap = /* @__PURE__ */ new Map();
+    if (settings.matchNumberVariables) {
+      for (const v of variableResolver2.getFloatVariables()) {
+        const numVal = v.value;
+        const key = `${numVal}px`;
+        if (!dimensionMap.has(key)) {
+          dimensionMap.set(key, {
+            variableId: v.id,
+            styleId: null,
+            name: v.name,
+            type: "variable",
+            category: "layout",
+            confidence: 100,
+            matchType: "exact",
+            distance: 0,
+            source: v.source,
+            libraryName: v.libraryName
+          });
+        }
+      }
+    }
+    for (const f of findings) {
+      if (f.category === "color") {
+        const sug = colorMap.get(f.currentValue);
+        if (sug) {
+          f.suggestion = sug;
+          f.suggestedValue = sug.name;
+          f.confidence = sug.confidence;
+          f.matchType = sug.matchType;
+          f.source = sug.type;
+          f.sourceName = sug.name;
+        }
+      } else if (f.category === "typography") {
+        if (typographyMap.size === 0) continue;
+        try {
+          const node = figma.getNodeById(f.layerId);
+          if (!node || node.type !== "TEXT") continue;
+          const props = extractTypographyProperties(node);
+          if (!props.fontFamily) continue;
+          const key = `${props.fontFamily}|${(_b = props.fontWeight) != null ? _b : ""}|${(_c = props.fontSize) != null ? _c : ""}`;
+          const sug = typographyMap.get(key);
+          if (sug) {
+            f.suggestion = sug;
+            f.suggestedValue = sug.name;
+            f.confidence = sug.confidence;
+            f.matchType = sug.matchType;
+            f.source = sug.type;
+            f.sourceName = sug.name;
+          }
+        } catch (e) {
+        }
+      } else if (f.category === "layout") {
+        const sug = dimensionMap.get(f.currentValue);
+        if (sug) {
+          f.suggestion = sug;
+          f.suggestedValue = sug.name;
+          f.confidence = sug.confidence;
+          f.matchType = sug.matchType;
+          f.source = sug.type;
+          f.sourceName = sug.name;
+        }
+      }
+    }
   }
 })();

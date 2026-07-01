@@ -12,7 +12,12 @@ import type {
   Finding,
   FindingFilter,
   ReportData,
+  Suggestion,
+  FigmaColor,
 } from "@/types";
+import { rgbaToHex } from "@/utils/color";
+import { extractTypographyProperties } from "@/plugin/utils/typography";
+import { typographyPropertiesMatch } from "@/utils/typography";
 
 let variableResolver: VariableResolver;
 let styleResolver: StyleResolver;
@@ -134,10 +139,26 @@ async function handleStartScan(scope: string, settings?: ScanSettings): Promise<
     );
 
     currentScanResult = scanResult;
+    const findings = scanResult.findings;
 
+    // Enrich findings with suggestions via fast lookup maps
+    enrichWithSuggestions(findings, variableResolver, styleResolver, finalSettings);
+
+    // Send findings in chunks to avoid blocking JSVM with one huge message
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < findings.length; i += CHUNK_SIZE) {
+      const chunk = findings.slice(i, Math.min(i + CHUNK_SIZE, findings.length));
+      figma.ui.postMessage({
+        type: "findings-chunk",
+        payload: { findings: chunk, total: findings.length, received: i + chunk.length },
+      });
+      await new Promise((r) => setTimeout(r, 5));
+    }
+
+    // Send scan-complete without findings (already sent in chunks)
     figma.ui.postMessage({
       type: "scan-complete",
-      payload: currentScanResult,
+      payload: { ...currentScanResult, findings: [] },
     });
 
     figma.ui.postMessage({
@@ -461,4 +482,153 @@ async function handleApplyManual(
     type: "apply-complete",
     payload: { ...result, appliedFindingIds: [findingId] },
   });
+}
+
+function enrichWithSuggestions(
+  findings: Finding[],
+  variableResolver: VariableResolver,
+  styleResolver: StyleResolver,
+  settings: ScanSettings,
+): void {
+  // Build color lookup: hex string → Suggestion
+  const colorMap = new Map<string, Suggestion>();
+  if (settings.matchColorVariables) {
+    for (const v of variableResolver.getColorVariables()) {
+      const c = v.value as FigmaColor;
+      const hex = rgbaToHex(c.r, c.g, c.b, c.a);
+      if (!colorMap.has(hex)) {
+        colorMap.set(hex, {
+          variableId: v.id,
+          styleId: null,
+          name: v.name,
+          type: "variable",
+          category: "color",
+          confidence: 100,
+          matchType: "exact",
+          distance: 0,
+          source: v.source,
+          libraryName: v.libraryName,
+        });
+      }
+    }
+  }
+  if (settings.matchColorStyles) {
+    for (const s of styleResolver.getColorStyles()) {
+      try {
+        const paintStyle = figma.getStyleById(s.id) as PaintStyle | null;
+        if (!paintStyle) continue;
+        const paint = paintStyle.paints[0];
+        if (!paint || paint.type !== "SOLID") continue;
+        const sp = paint as SolidPaint;
+        const hex = rgbaToHex(sp.color.r, sp.color.g, sp.color.b, sp.opacity ?? 1);
+        if (!colorMap.has(hex)) {
+          colorMap.set(hex, {
+            variableId: null,
+            styleId: s.id,
+            name: s.name,
+            type: "style",
+            category: "color",
+            confidence: 100,
+            matchType: "exact",
+            distance: 0,
+            source: s.source,
+            libraryName: s.libraryName,
+          });
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Build typography lookup: node properties key → text style
+  const typographyMap = new Map<string, Suggestion>();
+  if (settings.matchTextStyles) {
+    for (const s of styleResolver.getTextStyles()) {
+      try {
+        const textStyle = figma.getStyleById(s.id) as TextStyle | null;
+        if (!textStyle) continue;
+        const fontName = textStyle.fontName as FontName;
+        const key = `${fontName.family}|${fontName.style}|${textStyle.fontSize}`;
+        if (!typographyMap.has(key)) {
+          typographyMap.set(key, {
+            variableId: null,
+            styleId: s.id,
+            name: s.name,
+            type: "style",
+            category: "typography",
+            confidence: 100,
+            matchType: "exact",
+            distance: 0,
+            source: s.source,
+            libraryName: s.libraryName,
+          });
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Build dimension lookup: `${value}px` → FLOAT variable suggestion
+  const dimensionMap = new Map<string, Suggestion>();
+  if (settings.matchNumberVariables) {
+    for (const v of variableResolver.getFloatVariables()) {
+      const numVal = v.value as number;
+      const key = `${numVal}px`;
+      if (!dimensionMap.has(key)) {
+        dimensionMap.set(key, {
+          variableId: v.id,
+          styleId: null,
+          name: v.name,
+          type: "variable",
+          category: "layout",
+          confidence: 100,
+          matchType: "exact",
+          distance: 0,
+          source: v.source,
+          libraryName: v.libraryName,
+        });
+      }
+    }
+  }
+
+  // Apply suggestions to findings
+  for (const f of findings) {
+    if (f.category === "color") {
+      const sug = colorMap.get(f.currentValue);
+      if (sug) {
+        f.suggestion = sug;
+        f.suggestedValue = sug.name;
+        f.confidence = sug.confidence;
+        f.matchType = sug.matchType;
+        f.source = sug.type;
+        f.sourceName = sug.name;
+      }
+    } else if (f.category === "typography") {
+      if (typographyMap.size === 0) continue;
+      try {
+        const node = figma.getNodeById(f.layerId) as TextNode | null;
+        if (!node || node.type !== "TEXT") continue;
+        const props = extractTypographyProperties(node);
+        if (!props.fontFamily) continue;
+        const key = `${props.fontFamily}|${props.fontWeight ?? ""}|${props.fontSize ?? ""}`;
+        const sug = typographyMap.get(key);
+        if (sug) {
+          f.suggestion = sug;
+          f.suggestedValue = sug.name;
+          f.confidence = sug.confidence;
+          f.matchType = sug.matchType;
+          f.source = sug.type;
+          f.sourceName = sug.name;
+        }
+      } catch { /* skip */ }
+    } else if (f.category === "layout") {
+      const sug = dimensionMap.get(f.currentValue);
+      if (sug) {
+        f.suggestion = sug;
+        f.suggestedValue = sug.name;
+        f.confidence = sug.confidence;
+        f.matchType = sug.matchType;
+        f.source = sug.type;
+        f.sourceName = sug.name;
+      }
+    }
+  }
 }

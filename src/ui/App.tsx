@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/ui/components/ui/button";
 import { Progress } from "@/ui/components/ui/progress";
 import { ScrollArea } from "@/ui/components/ui/scroll-area";
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/ui/select";
+import { Badge } from "@/ui/components/ui/badge";
 import type { ScanScope, Finding, ScanResult, VariableInfo, StyleInfo, FigmaColor } from "@/types";
 
 function parseColorValue(value: string): string | null {
@@ -61,6 +62,21 @@ function getTabFindings(findings: Finding[], tab: TabInfo): Finding[] {
   return base;
 }
 
+function getDimensionSection(finding: Finding): string {
+  const prop = finding.property;
+  if (/^cornerRadius/i.test(prop)) return "Corner radius";
+  if (/^padding/i.test(prop)) return "Auto layout";
+  if (/^itemSpacing|counterAxisSpacing/i.test(prop)) return "Horizontal gap between objects";
+  if (/^(minWidth|maxWidth|width)/i.test(prop)) return "Horizontal size";
+  if (/^(minHeight|maxHeight|height)/i.test(prop)) return "Vertical size";
+  if (finding.category === "effects") {
+    return finding.currentValue.split(":")[0]?.trim() || "Effects";
+  }
+  return "Other";
+}
+
+const DIMENSION_SECTIONS = ["Corner radius", "Auto layout", "Horizontal gap between objects", "Horizontal size", "Vertical size"];
+
 interface Option {
   label: string;
   value: string;
@@ -80,7 +96,6 @@ function getOptionsForTab(tab: TabInfo, variables: VariableInfo[], styles: Style
     for (const s of styles.filter((s) => s.type === "FILL")) opts.push({ label: s.name, value: s.id, type: "style" });
   } else if (tab.id === "dimension") {
     for (const v of variables.filter((v) => v.type === "FLOAT")) opts.push({ label: v.name, value: v.id, type: "variable" });
-    for (const s of styles.filter((s) => s.type === "EFFECT")) opts.push({ label: s.name, value: s.id, type: "style" });
   } else if (tab.id === "typography") {
     for (const s of styles.filter((s) => s.type === "TEXT")) opts.push({ label: s.name, value: s.id, type: "style" });
   }
@@ -94,14 +109,20 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<{ scannedLayers: number; totalLayers: number; phase: string; findingsCount: number } | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [availableVariables, setAvailableVariables] = useState<VariableInfo[]>([]);
   const [availableStyles, setAvailableStyles] = useState<StyleInfo[]>([]);
+  const applyPendingRef = useRef(0);
+  const applyStatsRef = useRef({ updated: 0, failed: 0 });
   const [scanScope, setScanScope] = useState<ScanScope>("selection");
   const [activeTab, setActiveTab] = useState("color");
   const [isApplying, setIsApplying] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [appliedFindingIds, setAppliedFindingIds] = useState<Set<string>>(new Set());
   const [optionSearch, setOptionSearch] = useState("");
+  const [dimensionSection, setDimensionSection] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -110,6 +131,9 @@ export default function App() {
       switch (message.type) {
         case "scan-progress":
           setProgress(message.payload);
+          break;
+        case "findings-chunk":
+          setFindings((prev) => [...prev, ...message.payload.findings]);
           break;
         case "scan-complete":
           setScanResult(message.payload);
@@ -127,7 +151,6 @@ export default function App() {
           toast("Scan failed", { description: message.payload?.message ?? "Unknown error" });
           break;
         case "apply-complete":
-          setIsApplying(false);
           if (message.payload) {
             const r = message.payload;
             if (r.success && r.layersUpdated > 0) {
@@ -138,12 +161,24 @@ export default function App() {
                   return next;
                 });
               }
-              toast(`${r.layersUpdated} layer${r.layersUpdated !== 1 ? "s" : ""} updated`, {
-                description: r.failedUpdates > 0 ? `${r.failedUpdates} failed` : undefined,
-              });
+              applyStatsRef.current.updated += r.layersUpdated;
+              applyStatsRef.current.failed += r.failedUpdates || 0;
             } else if (r.errors?.length > 0) {
-              toast("Apply failed", { description: r.errors[0]?.message ?? "Unknown error" });
+              applyStatsRef.current.failed += r.errors.length;
             }
+          }
+          applyPendingRef.current--;
+          if (applyPendingRef.current <= 0) {
+            setIsApplying(false);
+            const s = applyStatsRef.current;
+            if (s.updated > 0) {
+              toast("Changes applied", {
+                description: `${s.updated} layer${s.updated !== 1 ? "s" : ""} updated${s.failed > 0 ? `, ${s.failed} failed` : ""}`,
+              });
+            } else if (s.failed > 0) {
+              toast("Apply failed", { description: `${s.failed} update${s.failed !== 1 ? "s" : ""} failed` });
+            }
+            applyStatsRef.current = { updated: 0, failed: 0 };
           }
           break;
       }
@@ -153,10 +188,14 @@ export default function App() {
   }, []);
 
   const visibleFindings = useMemo(() => {
-    if (!scanResult) return [];
+    if (findings.length === 0 && !scanResult) return [];
     const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
-    return getTabFindings(scanResult.findings, tab).filter((f) => !appliedFindingIds.has(f.id));
-  }, [scanResult, activeTab, appliedFindingIds]);
+    let filtered = getTabFindings(findings, tab).filter((f) => !appliedFindingIds.has(f.id));
+    if (activeTab === "dimension" && dimensionSection) {
+      filtered = filtered.filter((f) => getDimensionSection(f) === dimensionSection);
+    }
+    return filtered;
+  }, [findings, scanResult, activeTab, appliedFindingIds, dimensionSection]);
 
   const tabOptionsMap = useMemo(() => {
     const map: Record<string, Option[]> = {};
@@ -164,9 +203,16 @@ export default function App() {
     return map;
   }, [availableVariables, availableStyles]);
 
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(visibleFindings.length / pageSize)), [visibleFindings]);
+
+  const pageFindings = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return visibleFindings.slice(start, start + pageSize);
+  }, [visibleFindings, page, pageSize]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, { label: string; findings: Finding[] }> = {};
-    for (const f of visibleFindings) {
+    for (const f of pageFindings) {
       const key = f.layerId;
       if (!groups[key]) {
         groups[key] = { label: f.layerName, findings: [] };
@@ -174,7 +220,7 @@ export default function App() {
       groups[key].findings.push(f);
     }
     return Object.entries(groups);
-  }, [visibleFindings]);
+  }, [pageFindings]);
 
   const options = useMemo(() => tabOptionsMap[activeTab] ?? [], [tabOptionsMap, activeTab]);
 
@@ -188,10 +234,15 @@ export default function App() {
     [visibleFindings],
   );
 
+  useEffect(() => {
+    setPage(1);
+    if (activeTab !== "dimension") setDimensionSection("");
+  }, [activeTab, findings]);
   const startScan = useCallback(() => {
     setIsScanning(true);
     setProgress(null);
     setScanResult(null);
+    setFindings([]);
     setSelectedOptions({});
     setAvailableVariables([]);
     setAvailableStyles([]);
@@ -230,14 +281,20 @@ export default function App() {
       }
     }
 
+    const totalOps = manualList.length + (autoIds.length > 0 ? 1 : 0);
+    if (totalOps === 0) {
+      setIsApplying(false);
+      return;
+    }
+
+    applyPendingRef.current = totalOps;
+    applyStatsRef.current = { updated: 0, failed: 0 };
+
     for (const m of manualList) {
       parent.postMessage({ pluginMessage: { type: "apply-manual", ...m } }, "*");
     }
     if (autoIds.length > 0) {
       parent.postMessage({ pluginMessage: { type: "apply-selected", findingIds: autoIds } }, "*");
-    }
-    if (manualList.length === 0 && autoIds.length === 0) {
-      setIsApplying(false);
     }
   }, [scanResult, visibleFindings, selectedOptions, availableVariables, availableStyles]);
 
@@ -271,7 +328,7 @@ export default function App() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full">
               {TABS.map((t) => {
-                const count = getTabFindings(scanResult.findings, t).filter(
+                const count = getTabFindings(findings, t).filter(
                   (f) => !appliedFindingIds.has(f.id),
                 ).length;
                 return (
@@ -285,6 +342,27 @@ export default function App() {
               })}
             </TabsList>
           </Tabs>
+          {activeTab === "dimension" && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              <Badge
+                variant={dimensionSection === "" ? "default" : "outline"}
+                className="cursor-pointer text-[11px] px-2 py-0.5"
+                onClick={() => { setDimensionSection(""); setPage(1); }}
+              >
+                All
+              </Badge>
+              {DIMENSION_SECTIONS.map((s) => (
+                <Badge
+                  key={s}
+                  variant={dimensionSection === s ? "default" : "outline"}
+                  className="cursor-pointer text-[11px] px-2 py-0.5"
+                  onClick={() => { setDimensionSection(s); setPage(1); }}
+                >
+                  {s}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
         {Object.entries(grouped).length === 0 ? (
@@ -300,10 +378,11 @@ export default function App() {
               </div>
             </div>
           ) : (
+            <>
             <ScrollArea className="flex-1">
               <div className="px-3 pb-3 space-y-3">
               {grouped.map(([groupKey, group]) => (
-                <div key={groupKey}>
+                  <div key={groupKey}>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-[11px] font-semibold text-muted-foreground">{group.label}</span>
                     <span className="text-[11px] text-muted-foreground">({group.findings.length})</span>
@@ -363,7 +442,19 @@ export default function App() {
                 </div>
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-end gap-1 pb-3 pr-3">
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  ‹
+                </Button>
+                <span className="text-[11px] text-muted-foreground min-w-[40px] text-center">{page}/{totalPages}</span>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                  ›
+                </Button>
+              </div>
+            )}
           </ScrollArea>
+          </>
           )}
 
         <div className="border-t p-3 flex items-center justify-between shrink-0 bg-muted/30">

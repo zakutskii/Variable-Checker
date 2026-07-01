@@ -5,11 +5,12 @@ export class LayoutScanner {
   scan(node: SceneNode, _settings: ScanSettings): Finding[] {
     const findings: Finding[] = [];
     const pageName = node.parent?.type === "PAGE" ? (node.parent as PageNode).name : "Unknown";
+    const bv = (node as SceneNode & { boundVariables?: Record<string, { id: string; type: string }> }).boundVariables;
 
     if ("cornerRadius" in node && typeof node.cornerRadius === "number") {
       const cornerRadius = node.cornerRadius as number;
 
-      if (cornerRadius > 0) {
+      if (cornerRadius > 0 && !bv?.cornerRadius && !bv?.topLeftRadius && !bv?.topRightRadius && !bv?.bottomLeftRadius && !bv?.bottomRightRadius) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -33,7 +34,8 @@ export class LayoutScanner {
     if (
       "minWidth" in node &&
       typeof node.minWidth === "number" &&
-      node.minWidth > 0
+      node.minWidth > 0 &&
+      !bv?.minWidth
     ) {
       findings.push({
         id: generateId(),
@@ -57,7 +59,8 @@ export class LayoutScanner {
     if (
       "maxWidth" in node &&
       typeof node.maxWidth === "number" &&
-      node.maxWidth > 0
+      node.maxWidth > 0 &&
+      !bv?.maxWidth
     ) {
       findings.push({
         id: generateId(),
@@ -81,7 +84,8 @@ export class LayoutScanner {
     if (
       "minHeight" in node &&
       typeof node.minHeight === "number" &&
-      node.minHeight > 0
+      node.minHeight > 0 &&
+      !bv?.minHeight
     ) {
       findings.push({
         id: generateId(),
@@ -105,7 +109,8 @@ export class LayoutScanner {
     if (
       "maxHeight" in node &&
       typeof node.maxHeight === "number" &&
-      node.maxHeight > 0
+      node.maxHeight > 0 &&
+      !bv?.maxHeight
     ) {
       findings.push({
         id: generateId(),
@@ -129,7 +134,7 @@ export class LayoutScanner {
     if ("layoutMode" in node && node.layoutMode !== "NONE") {
       const frameNode = node as FrameNode;
 
-      if (frameNode.itemSpacing > 0) {
+      if (frameNode.itemSpacing > 0 && !bv?.itemSpacing) {
         findings.push({
           id: generateId(),
           layerId: node.id,
@@ -149,6 +154,26 @@ export class LayoutScanner {
         });
       }
 
+      if (frameNode.counterAxisSpacing > 0 && !bv?.counterAxisSpacing) {
+        findings.push({
+          id: generateId(),
+          layerId: node.id,
+          layerName: node.name,
+          layerType: node.type,
+          category: "layout",
+          property: "counterAxisSpacing",
+          currentValue: `${frameNode.counterAxisSpacing}px`,
+          suggestedValue: null,
+          suggestion: null,
+          confidence: 0,
+          matchType: null,
+          source: null,
+          sourceName: null,
+          parentChain: findParentChain(node),
+          pageName,
+        });
+      }
+
       const paddingProps: { key: string; value: number }[] = [
         { key: "paddingTop", value: frameNode.paddingTop },
         { key: "paddingBottom", value: frameNode.paddingBottom },
@@ -157,7 +182,7 @@ export class LayoutScanner {
       ];
 
       for (const prop of paddingProps) {
-        if (prop.value > 0) {
+        if (prop.value > 0 && !bv?.[prop.key as keyof typeof bv]) {
           findings.push({
             id: generateId(),
             layerId: node.id,
@@ -179,7 +204,7 @@ export class LayoutScanner {
       }
     }
 
-    if ("width" in node && typeof node.width === "number") {
+    if ("width" in node && typeof node.width === "number" && !bv?.width) {
       findings.push({
         id: generateId(),
         layerId: node.id,
@@ -199,7 +224,7 @@ export class LayoutScanner {
       });
     }
 
-    if ("height" in node && typeof node.height === "number") {
+    if ("height" in node && typeof node.height === "number" && !bv?.height) {
       findings.push({
         id: generateId(),
         layerId: node.id,

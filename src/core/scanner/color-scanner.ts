@@ -16,6 +16,7 @@ export class ColorScanner {
 
         if (isSolidColor(fill)) {
           const paint = fill as SolidPaint;
+          if (paint.boundVariables?.color) continue;
           const color = getPaintColor(paint);
           const fillStyleId = "fillStyleId" in node ? (node as GeometryMixin).fillStyleId : null;
           const hasStyle = !!fillStyleId;
@@ -71,6 +72,7 @@ export class ColorScanner {
 
         if (isSolidColor(stroke)) {
           const paint = stroke as SolidPaint;
+          if (paint.boundVariables?.color) continue;
           const color = getPaintColor(paint);
           const strokeStyleId = "strokeStyleId" in node ? (node as GeometryMixin).strokeStyleId : null;
           const hasStyle = !!strokeStyleId;
